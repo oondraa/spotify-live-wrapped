@@ -16,3 +16,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Design Canvas source export for the promo page (see docs/ for the deployed site)
+promo_web/
