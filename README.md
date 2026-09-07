@@ -1,22 +1,55 @@
-# Spotify Live Wrapped
+# 🎧 Spotify Live Wrapped
 
-Vlastní "24/7 Spotify Wrapped" – na pozadí průběžně sbírá tvou historii
-poslechu přes Spotify Web API a zobrazuje ji jako živý statistický
-dashboard (top interpreti, skladby, alba, grafy aktivity, listening
-streak, night owl score a další).
+Your own 24/7 "Spotify Wrapped" — running on your own server, on your
+own data. A background collector continuously pulls your listening
+history from the Spotify Web API and a live dashboard turns it into
+top artists, top tracks, top albums, activity charts, listening
+streaks, a night-owl score, and more.
 
-Skládá se ze dvou nezávislých procesů:
+<p align="center">
+  <img src="docs/screenshots/overview.jpg" alt="Overview dashboard with total listening time, plays, and insight cards" width="850">
+</p>
 
-- **collector** (`app/collector.py`) – na pozadí každých pár minut
-  stahuje nedávno přehrané skladby a ukládá je do SQLite databáze.
-- **web** (`app/web.py`) – Flask aplikace s přihlášením, která z
-  databáze počítá statistiky a zobrazuje dashboard.
+## ✨ Features
 
-## Rychlý start (lokálně)
+- **Always-on collection** — a lightweight background worker polls
+  your recently-played tracks every few minutes and stores them in
+  SQLite, so nothing gets lost even if you're offline.
+- **Live web dashboard** — password-protected Flask app with overview
+  stats, insight cards (repeat rate, night owl score, listening
+  streak, peak hours...), interactive charts, and top-10 rankings.
+- **No secrets in the code** — every API key, admin password and
+  session secret comes from `.env`, never hardcoded.
+- **One-command Linux install** — `deploy/install.sh` sets up a venv,
+  walks you through configuration, runs the one-time Spotify
+  authorization, and can install systemd services for you.
 
-Vyžaduje Python 3.10+ a [Spotify Developer](https://developer.spotify.com/dashboard)
-aplikaci (Client ID + Client Secret, Redirect URI nastavené na
-`http://127.0.0.1:8080` nebo vlastní).
+## 📸 Screenshots
+
+| Overview | Charts & Trends |
+|---|---|
+| ![Overview](docs/screenshots/overview.jpg) | ![Charts and trends](docs/screenshots/charts.jpg) |
+
+<p align="center">
+  <img src="docs/screenshots/top-rankings.jpg" alt="Top artists, top tracks and top albums rankings" width="850"><br>
+  <sub>Top artists / top tracks / top albums rankings, all-time</sub>
+</p>
+
+## 🏗 How it's built
+
+Two independent processes share one SQLite database:
+
+- **collector** (`app/collector.py`) — polls the Spotify API for
+  recently-played tracks and followed artists, and writes new rows
+  to `data/spotify_history.db`.
+- **web** (`app/web.py`) — a Flask app that reads that database,
+  computes the stats with pandas, and renders the dashboard.
+
+## 🚀 Quick start (local)
+
+Requires Python 3.10+ and a [Spotify Developer](https://developer.spotify.com/dashboard)
+app (Client ID + Client Secret, Redirect URI set to
+`http://127.0.0.1:8080` or your own).
 
 ```bash
 python3 -m venv .venv
@@ -24,42 +57,44 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# doplň SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / SPOTIFY_REDIRECT_URI,
-# ADMIN_USERNAME / ADMIN_PASSWORD a FLASK_SECRET_KEY v .env
+# fill in SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / SPOTIFY_REDIRECT_URI,
+# ADMIN_USERNAME / ADMIN_PASSWORD and FLASK_SECRET_KEY in .env
 
-python scripts/authorize.py      # jednorázová autorizace Spotify účtu
-python app/collector.py          # v jednom terminálu – sběr dat
-python app/web.py                # ve druhém terminálu – dashboard na http://localhost:5000
+python scripts/authorize.py      # one-time Spotify account authorization
+python app/collector.py          # terminal 1 - data collection
+python app/web.py                # terminal 2 - dashboard on http://localhost:5000
 ```
 
-## Nasazení na Linux server
+## 🐧 Deploying to a Linux server
 
-V repu je instalátor, který založí virtuální prostředí, nechá tě
-zadat API klíče a přihlašovací údaje (rovnou je zapíše do `.env`,
-nic se necommitne), provede autorizaci Spotify účtu a volitelně
-nainstaluje obě služby jako systemd jednotky.
+The repo ships an installer that creates a virtual environment, walks
+you through entering your API keys and login credentials (written
+straight to `.env`, nothing gets committed), runs the Spotify account
+authorization, and can optionally install both services as systemd
+units.
 
 ```bash
-git clone <url-tohoto-repa> spotify-live-wrapped
+git clone <this-repo-url> spotify-live-wrapped
 cd spotify-live-wrapped
 bash deploy/install.sh
 ```
 
-Instalátor se postupně zeptá na:
+The installer will ask for:
 
 1. Spotify `CLIENT_ID` / `CLIENT_SECRET` / `REDIRECT_URI`
-2. Přihlašovací jméno a heslo do webového dashboardu (`FLASK_SECRET_KEY`
-   se vygeneruje automaticky)
-3. Jestli chceš rovnou provést autorizaci Spotify účtu (vypíše odkaz,
-   ty ho otevřeš v prohlížeči, přihlásíš se a vrátíš zpět přesměrovanou
-   URL – token se pak už obnovuje sám)
-4. Jestli chceš nainstalovat systemd služby `spotify-collector` a
-   `spotify-web` (běh na pozadí + start po rebootu)
+2. Login username and password for the web dashboard
+   (`FLASK_SECRET_KEY` is generated automatically)
+3. Whether to run the Spotify account authorization right away (it
+   prints a link, you open it in a browser, log in, and paste the
+   resulting redirect URL back — the token then refreshes itself)
+4. Whether to install the `spotify-collector` and `spotify-web`
+   systemd services (background execution + start on boot)
 
-Šablony jednotek jsou v `deploy/systemd/`. Web běží přes `gunicorn`
-(viz `requirements.txt`), collector jako obyčejný Python proces.
+Unit templates live in `deploy/systemd/`. The web app runs behind
+`gunicorn` (see `requirements.txt`); the collector is a plain Python
+process.
 
-Užitečné příkazy po instalaci:
+Useful commands after installing:
 
 ```bash
 sudo systemctl status spotify-web spotify-collector
@@ -67,35 +102,38 @@ sudo journalctl -u spotify-web -f
 sudo journalctl -u spotify-collector -f
 ```
 
-Pokud web hlásí "Aplikace ještě není nakonfigurovaná", chybí něco
-v `.env` – doplň to a `sudo systemctl restart spotify-web`.
+If the web app shows "The app isn't configured yet", something is
+missing from `.env` — fill it in and run
+`sudo systemctl restart spotify-web`.
 
-## Konfigurace (.env)
+## ⚙️ Configuration (.env)
 
-Viz `.env.example` pro kompletní seznam proměnných. Nic z toho se
-necommituje – `.env`, `data/` (databáze + token cache) i `.venv/`
-jsou v `.gitignore`.
+See `.env.example` for the full list of variables. None of this is
+committed — `.env`, `data/` (database + OAuth token cache) and
+`.venv/` are all in `.gitignore`.
 
-| Proměnná | Popis |
+| Variable | Description |
 |---|---|
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` | API klíče ze Spotify Developer Dashboardu |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | přihlášení do web dashboardu |
-| `FLASK_SECRET_KEY` | podpis Flask session cookie – náhodný hex řetězec |
-| `APP_TITLE` | název zobrazený v UI (výchozí "Spotify Live Wrapped") |
-| `WEB_HOST`, `WEB_PORT` | na čem poslouchá web (výchozí `0.0.0.0:5000`) |
-| `COLLECT_INTERVAL_SECONDS` | jak často collector stahuje nová data (výchozí 600 s) |
-| `DATA_DIR` | kam se ukládá `spotify_history.db` a `.cache` (výchozí `./data`) |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` | API keys from the Spotify Developer Dashboard |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | login for the web dashboard |
+| `FLASK_SECRET_KEY` | signs the Flask session cookie — a random hex string |
+| `APP_TITLE` | name shown in the UI (default "Spotify Live Wrapped") |
+| `WEB_HOST`, `WEB_PORT` | what the web app listens on (default `0.0.0.0:5000`) |
+| `COLLECT_INTERVAL_SECONDS` | how often the collector polls for new data (default 600s) |
+| `DATA_DIR` | where `spotify_history.db` and `.cache` are stored (default `./data`) |
 
-## Bezpečnostní poznámky
+## 🔒 Security notes
 
-- Žádné API klíče ani hesla nejsou v kódu – všechno jde přes `.env`.
-- `data/` obsahuje tvoji osobní historii poslechu a OAuth token –
-  nikdy to necommituj a nesdílej.
-- Dashboard je chráněný jménem/heslem, ale doporučuje se pouštět ho
-  za reverzní proxy s HTTPS (nginx/caddy), pokud běží na veřejné IP.
+- No API keys or passwords live in the code — everything goes
+  through `.env`.
+- `data/` holds your personal listening history and OAuth token —
+  never commit or share it.
+- The dashboard is protected by a username/password, but if it's
+  reachable on a public IP, put it behind a reverse proxy with HTTPS
+  (nginx/caddy).
 
-## Licence
+## 📄 License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE) – použití pro osobní,
-nekomerční účely je v pořádku (studium, vlastní hobby nasazení,
-úpravy pro sebe). Komerční využití vyžaduje svolení autora.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — personal,
+noncommercial use is fine (study it, self-host it, modify it for
+yourself). Commercial use requires the author's permission.

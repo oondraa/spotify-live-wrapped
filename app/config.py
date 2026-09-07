@@ -40,9 +40,9 @@ def require_spotify_credentials():
     ]
     if missing:
         print(
-            "Chybí povinné proměnné v .env: " + ", ".join(missing) + "\n"
-            "Zkopíruj .env.example na .env a doplň hodnoty ze Spotify Developer Dashboardu, "
-            "nebo spusť deploy/install.sh.",
+            "Missing required variables in .env: " + ", ".join(missing) + "\n"
+            "Copy .env.example to .env and fill in the values from the Spotify Developer "
+            "Dashboard, or run deploy/install.sh.",
             file=sys.stderr,
         )
         sys.exit(1)

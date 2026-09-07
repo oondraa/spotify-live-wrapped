@@ -56,11 +56,11 @@ def save_to_db(recent_tracks):
             if c.rowcount > 0:
                 count += 1
         except Exception as e:
-            print(f"Chyba: {e}")
+            print(f"Error: {e}")
     conn.commit()
     conn.close()
     if count > 0:
-        print(f"{datetime.now()}: Uloženo {count} nových skladeb.")
+        print(f"{datetime.now()}: Saved {count} new tracks.")
 
 
 def update_following():
@@ -77,21 +77,21 @@ def update_following():
                       (a['id'], a['name'], img, genres))
         conn.commit()
         conn.close()
-        print(f"{datetime.now()}: Aktualizováno {len(artists)} sledovaných umělců.")
+        print(f"{datetime.now()}: Updated {len(artists)} followed artists.")
     except Exception as e:
-        print(f"Chyba Following: {e}")
+        print(f"Error updating followed artists: {e}")
 
 
 def main():
     init_db()
-    print("Sběrač spuštěn...")
+    print("Collector started...")
     while True:
         try:
             recent_tracks = sp.current_user_recently_played(limit=50)
             save_to_db(recent_tracks)
             update_following()
         except Exception as e:
-            print(f"Chyba: {e}")
+            print(f"Error: {e}")
         time.sleep(COLLECT_INTERVAL_SECONDS)
 
 

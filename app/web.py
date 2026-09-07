@@ -29,25 +29,25 @@ def login_required(f):
 def get_data():
     conn = sqlite3.connect(DB_PATH)
 
-    # 1. Datum spuštění
+    # 1. Tracking start date
     start_date_query = pd.read_sql_query("SELECT MIN(played_at) as start FROM history", conn)
     start_date = start_date_query.iloc[0]['start'][:10] if not start_date_query.empty and start_date_query.iloc[0]['start'] else "N/A"
 
-    # 2. Celkový čas (OPTIMALIZOVÁNO)
+    # 2. Total listening time (optimized)
     total_ms_query = pd.read_sql_query("SELECT SUM(duration_ms) as total FROM history", conn)
     total_ms = total_ms_query.iloc[0]['total'] if not total_ms_query.empty and total_ms_query.iloc[0]['total'] else 0
     total_min = int((total_ms / (1000 * 60)) % 60)
     total_hours = int(total_ms / (1000 * 60 * 60))
 
-    # 3. Počet přehraných skladeb
+    # 3. Total number of plays
     total_plays_query = pd.read_sql_query("SELECT COUNT(*) as count FROM history", conn)
     total_plays = total_plays_query.iloc[0]['count'] if not total_plays_query.empty else 0
 
-    # 4. Počet unikátních skladeb
+    # 4. Number of unique tracks
     unique_tracks_query = pd.read_sql_query("SELECT COUNT(DISTINCT track_id) as count FROM history", conn)
     unique_tracks = unique_tracks_query.iloc[0]['count'] if not unique_tracks_query.empty else 0
 
-    # 5. Top 10 Artistů (OPTIMALIZOVÁNO s LIMIT)
+    # 5. Top 10 artists (optimized with LIMIT)
     top_artists = pd.read_sql_query("""
         SELECT artist_name, image_url, COUNT(*) as count
         FROM history
@@ -56,7 +56,7 @@ def get_data():
         LIMIT 10
     """, conn)
 
-    # 6. Top 10 Skladeb (OPTIMALIZOVÁNO s LIMIT)
+    # 6. Top 10 tracks (optimized with LIMIT)
     top_tracks = pd.read_sql_query("""
         SELECT track_name, artist_name, image_url, COUNT(*) as count
         FROM history
@@ -65,15 +65,15 @@ def get_data():
         LIMIT 10
     """, conn)
 
-    # 7. Počet unikátních artistů
+    # 7. Number of unique artists
     unique_artists_query = pd.read_sql_query("SELECT COUNT(DISTINCT artist_id) as count FROM history", conn)
     unique_artists = unique_artists_query.iloc[0]['count'] if not unique_artists_query.empty else 0
 
-    # 8. Počet unikátních alb
+    # 8. Number of unique albums
     unique_albums_query = pd.read_sql_query("SELECT COUNT(DISTINCT album_name) as count FROM history", conn)
     unique_albums = unique_albums_query.iloc[0]['count'] if not unique_albums_query.empty else 0
 
-    # 9. Průměr skladeb za den (OPTIMALIZOVÁNO)
+    # 9. Average plays per day (optimized)
     days_tracking_query = pd.read_sql_query("""
         SELECT JULIANDAY(MAX(played_at)) - JULIANDAY(MIN(played_at)) + 1 as days
         FROM history
@@ -81,7 +81,7 @@ def get_data():
     days_tracking = days_tracking_query.iloc[0]['days'] if not days_tracking_query.empty else 1
     avg_per_day = int(total_plays / days_tracking) if days_tracking > 0 else 0
 
-    # 10. Top 10 alb (OPTIMALIZOVÁNO s LIMIT)
+    # 10. Top 10 albums (optimized with LIMIT)
     top_albums = pd.read_sql_query("""
         SELECT album_name, artist_name, image_url, COUNT(*) as count
         FROM history
@@ -90,7 +90,7 @@ def get_data():
         LIMIT 10
     """, conn)
 
-    # 11. Poslední 24 hodin (OPTIMALIZOVÁNO - rychlý index na played_at)
+    # 11. Last 24 hours (optimized - fast index on played_at)
     last_24h_query = pd.read_sql_query("""
         SELECT COUNT(*) as count
         FROM history
@@ -98,7 +98,7 @@ def get_data():
     """, conn)
     last_24h = last_24h_query.iloc[0]['count'] if not last_24h_query.empty else 0
 
-    # 12. Tento týden (OPTIMALIZOVÁNO)
+    # 12. This week (optimized)
     last_7d_query = pd.read_sql_query("""
         SELECT COUNT(*) as count
         FROM history
@@ -106,10 +106,10 @@ def get_data():
     """, conn)
     last_7d = last_7d_query.iloc[0]['count'] if not last_7d_query.empty else 0
 
-    # 13. Repeat rate (OPTIMALIZOVÁNO)
+    # 13. Repeat rate (optimized)
     repeat_rate = int((1 - (unique_tracks / total_plays)) * 100) if total_plays > 0 else 0
 
-    # 14. Top den (OPTIMALIZOVÁNO s LIMIT 1)
+    # 14. Best day (optimized with LIMIT 1)
     top_day = pd.read_sql_query("""
         SELECT DATE(played_at) as day, COUNT(*) as count
         FROM history
@@ -124,17 +124,17 @@ def get_data():
     else:
         top_day_date, top_day_count = "N/A", 0
 
-    # 15. Den v týdnu statistika (OPTIMALIZOVÁNO)
+    # 15. Day-of-week stats (optimized)
     weekday_stats = pd.read_sql_query("""
         SELECT
             CASE CAST(strftime('%w', played_at) AS INTEGER)
-                WHEN 0 THEN 'Neděle'
-                WHEN 1 THEN 'Pondělí'
-                WHEN 2 THEN 'Úterý'
-                WHEN 3 THEN 'Středa'
-                WHEN 4 THEN 'Čtvrtek'
-                WHEN 5 THEN 'Pátek'
-                WHEN 6 THEN 'Sobota'
+                WHEN 0 THEN 'Sunday'
+                WHEN 1 THEN 'Monday'
+                WHEN 2 THEN 'Tuesday'
+                WHEN 3 THEN 'Wednesday'
+                WHEN 4 THEN 'Thursday'
+                WHEN 5 THEN 'Friday'
+                WHEN 6 THEN 'Saturday'
             END as day_name,
             COUNT(*) as count
         FROM history
@@ -146,7 +146,7 @@ def get_data():
     favorite_weekday = weekday_stats.iloc[0]['day_name'] if not weekday_stats.empty else "N/A"
     favorite_weekday_count = weekday_stats.iloc[0]['count'] if not weekday_stats.empty else 0
 
-    # 16. Night owl score (OPTIMALIZOVÁNO)
+    # 16. Night owl score (optimized)
     night_plays = pd.read_sql_query("""
         SELECT COUNT(*) as count
         FROM history
@@ -156,13 +156,13 @@ def get_data():
     night_count = night_plays.iloc[0]['count'] if not night_plays.empty else 0
     night_percentage = int((night_count / total_plays) * 100) if total_plays > 0 else 0
 
-    # 17. Průměrná délka skladby
+    # 17. Average track length
     avg_duration = pd.read_sql_query("SELECT AVG(duration_ms) as avg FROM history", conn)
     avg_ms = avg_duration.iloc[0]['avg'] if not avg_duration.empty else 0
     avg_min = int((avg_ms / (1000 * 60)) % 60)
     avg_sec = int((avg_ms / 1000) % 60)
 
-    # 18. Top 3 hodiny (OPTIMALIZOVÁNO s LIMIT)
+    # 18. Top 3 hours (optimized with LIMIT)
     hourly_stats = pd.read_sql_query("""
         SELECT
             CAST(strftime('%H', played_at) AS INTEGER) as hour,
@@ -173,7 +173,7 @@ def get_data():
         LIMIT 3
     """, conn)
 
-    # 19. Všechny hodiny pro graf (OPTIMALIZOVÁNO)
+    # 19. All hours for the chart (optimized)
     hourly_chart = pd.read_sql_query("""
         SELECT
             CAST(strftime('%H', played_at) AS INTEGER) as hour,
@@ -187,18 +187,18 @@ def get_data():
     hourly_chart = all_hours.merge(hourly_chart, on='hour', how='left').fillna(0)
     hourly_chart['count'] = hourly_chart['count'].astype(int)
 
-    # 20. Týdenní breakdown (OPTIMALIZOVÁNO)
+    # 20. Weekly breakdown (optimized)
     weekly_chart = pd.read_sql_query("""
         SELECT
             CAST(strftime('%w', played_at) AS INTEGER) as day_num,
             CASE CAST(strftime('%w', played_at) AS INTEGER)
-                WHEN 0 THEN 'Ne'
-                WHEN 1 THEN 'Po'
-                WHEN 2 THEN 'Út'
-                WHEN 3 THEN 'St'
-                WHEN 4 THEN 'Čt'
-                WHEN 5 THEN 'Pá'
-                WHEN 6 THEN 'So'
+                WHEN 0 THEN 'Sun'
+                WHEN 1 THEN 'Mon'
+                WHEN 2 THEN 'Tue'
+                WHEN 3 THEN 'Wed'
+                WHEN 4 THEN 'Thu'
+                WHEN 5 THEN 'Fri'
+                WHEN 6 THEN 'Sat'
             END as day_name,
             COUNT(*) as count
         FROM history
@@ -206,7 +206,7 @@ def get_data():
         ORDER BY day_num
     """, conn)
 
-    # 21. Měsíční trend - jen posledních 6 měsíců (OPTIMALIZOVÁNO)
+    # 21. Monthly trend - last 6 months only (optimized)
     monthly_chart = pd.read_sql_query("""
         SELECT
             strftime('%Y-%m', played_at) as month,
@@ -217,7 +217,7 @@ def get_data():
         ORDER BY month
     """, conn)
 
-    # 22. Listening streak (OPTIMALIZOVÁNO - jen distinct dates)
+    # 22. Listening streak (optimized - distinct dates only)
     all_dates = pd.read_sql_query("""
         SELECT DISTINCT DATE(played_at) as date
         FROM history
@@ -301,10 +301,10 @@ def home():
 
 SETUP_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nutná konfigurace</title>
+    <title>Setup required</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { background:#000; color:#fff; font-family: -apple-system, sans-serif; display:flex;
@@ -318,12 +318,12 @@ SETUP_TEMPLATE = """
 </head>
 <body>
     <div class="box">
-        <h1>Aplikace ještě není nakonfigurovaná</h1>
-        <p>Chybí <code>ADMIN_USERNAME</code>, <code>ADMIN_PASSWORD</code> nebo <code>FLASK_SECRET_KEY</code> v souboru <code>.env</code>.</p>
+        <h1>The app isn't configured yet</h1>
+        <p>Missing <code>ADMIN_USERNAME</code>, <code>ADMIN_PASSWORD</code> or <code>FLASK_SECRET_KEY</code> in the <code>.env</code> file.</p>
         <ol>
-            <li>Na serveru spusť <code>deploy/install.sh</code>, nebo</li>
-            <li>Ručně zkopíruj <code>.env.example</code> na <code>.env</code> a doplň hodnoty.</li>
-            <li>Restartuj službu: <code>sudo systemctl restart spotify-web</code>.</li>
+            <li>Run <code>deploy/install.sh</code> on the server, or</li>
+            <li>Manually copy <code>.env.example</code> to <code>.env</code> and fill in the values.</li>
+            <li>Restart the service: <code>sudo systemctl restart spotify-web</code>.</li>
         </ol>
     </div>
 </body>
@@ -332,7 +332,7 @@ SETUP_TEMPLATE = """
 
 LOGIN_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Login - {{ app_title }}</title>
@@ -497,23 +497,23 @@ LOGIN_TEMPLATE = """
     <div class="login-container">
         <div class="logo">
             <h1>{{ app_title }}</h1>
-            <p>Přihlášení</p>
+            <p>Sign In</p>
         </div>
         {% if error %}
         <div class="error">
-            ❌ Špatné uživatelské jméno nebo heslo
+            ❌ Incorrect username or password
         </div>
         {% endif %}
         <form method="POST">
             <div class="form-group">
-                <label for="username">Uživatelské jméno</label>
+                <label for="username">Username</label>
                 <input type="text" id="username" name="username" required autofocus>
             </div>
             <div class="form-group">
-                <label for="password">Heslo</label>
+                <label for="password">Password</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            <button type="submit">Přihlásit se</button>
+            <button type="submit">Sign In</button>
         </form>
     </div>
 </body>
@@ -522,7 +522,7 @@ LOGIN_TEMPLATE = """
 
 MAIN_TEMPLATE = """
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>{{ app_title }}</title>
@@ -1053,132 +1053,132 @@ MAIN_TEMPLATE = """
     <div id="loading-screen">
         <div class="loader">
             <div class="vinyl"></div>
-            <div class="loading-text">NAČÍTÁM...</div>
+            <div class="loading-text">LOADING...</div>
         </div>
     </div>
 
     <div class="container">
         <!-- HEADER -->
         <div class="header">
-            <span class="tracking-date">Měříme od {{ start_date }}</span>
+            <span class="tracking-date">Tracking since {{ start_date }}</span>
             <h1>{{ app_title }}</h1>
         </div>
 
-        <!-- SECTION: PŘEHLED -->
+        <!-- SECTION: OVERVIEW -->
         <div class="section">
-            <h2 class="section-title">Celkový Přehled</h2>
+            <h2 class="section-title">Overview</h2>
             <div class="stats-overview">
                 <div class="stat-card">
                     <span class="stat-value">{{ total_hours }}h {{ total_min }}m</span>
-                    <span class="stat-label">Celkový čas</span>
+                    <span class="stat-label">Total Time</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ total_plays }}</span>
-                    <span class="stat-label">Přehráno</span>
+                    <span class="stat-label">Plays</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ unique_tracks }}</span>
-                    <span class="stat-label">Unikátních</span>
+                    <span class="stat-label">Unique Tracks</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ unique_artists }}</span>
-                    <span class="stat-label">Artistů</span>
+                    <span class="stat-label">Artists</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ unique_albums }}</span>
-                    <span class="stat-label">Alb</span>
+                    <span class="stat-label">Albums</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-value">{{ avg_per_day }}</span>
-                    <span class="stat-label">Průměr/den</span>
+                    <span class="stat-label">Avg/Day</span>
                 </div>
             </div>
         </div>
 
         <!-- SECTION: INSIGHTS -->
         <div class="section">
-            <h2 class="section-title">Zajímavosti</h2>
+            <h2 class="section-title">Insights</h2>
             <div class="insights-grid">
                 <div class="insight-card">
                     <span class="insight-icon">🔁</span>
-                    <h3>Repeat rate</h3>
+                    <h3>Repeat Rate</h3>
                     <div class="value">{{ repeat_rate }}%</div>
-                    <div class="subtext">skladeb posloucháš opakovaně</div>
+                    <div class="subtext">of tracks you listen to on repeat</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">🏆</span>
-                    <h3>Nejlepší den</h3>
-                    <div class="value">{{ top_day_count }} skladeb</div>
+                    <h3>Best Day</h3>
+                    <div class="value">{{ top_day_count }} plays</div>
                     <div class="subtext">{{ top_day_date }}</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">📅</span>
-                    <h3>Nejčastější den</h3>
+                    <h3>Favorite Day</h3>
                     <div class="value">{{ favorite_weekday }}</div>
-                    <div class="subtext">{{ favorite_weekday_count }} přehrání celkem</div>
+                    <div class="subtext">{{ favorite_weekday_count }} plays total</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">🌙</span>
                     <h3>Night Owl Score</h3>
                     <div class="value">{{ night_percentage }}%</div>
-                    <div class="subtext">poslouchání mezi 22:00-6:00</div>
+                    <div class="subtext">listening between 10 PM - 6 AM</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">⏱️</span>
-                    <h3>Průměrná délka</h3>
+                    <h3>Average Length</h3>
                     <div class="value">{{ avg_min }}:{{ "%02d"|format(avg_sec) }}</div>
-                    <div class="subtext">průměrná skladba</div>
+                    <div class="subtext">average track</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">🕐</span>
-                    <h3>Peak hodiny</h3>
+                    <h3>Peak Hours</h3>
                     <div class="value">
                         {% for i, r in hourly_stats.iterrows() %}
                             {{ r['hour'] }}:00{% if not loop.last %}, {% endif %}
                         {% endfor %}
                     </div>
-                    <div class="subtext">kdy posloucháš nejvíc</div>
+                    <div class="subtext">when you listen the most</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">🔥</span>
                     <h3>Listening Streak</h3>
-                    <div class="value">{{ max_streak }} dní</div>
-                    <div class="subtext">nejdelší série v kuse</div>
+                    <div class="value">{{ max_streak }} days</div>
+                    <div class="subtext">longest streak in a row</div>
                 </div>
 
                 <div class="insight-card">
                     <span class="insight-icon">📈</span>
-                    <h3>Tento týden</h3>
-                    <div class="value">{{ last_7d }} skladeb</div>
-                    <div class="subtext">{{ (last_7d / 7)|int }} průměr/den</div>
+                    <h3>This Week</h3>
+                    <div class="value">{{ last_7d }} plays</div>
+                    <div class="subtext">{{ (last_7d / 7)|int }} avg/day</div>
                 </div>
             </div>
         </div>
 
         <!-- SECTION: CHARTS -->
         <div class="section">
-            <h2 class="section-title">Grafy & Trendy</h2>
+            <h2 class="section-title">Charts & Trends</h2>
             <div class="charts-section">
                 <div class="chart-card">
-                    <h3>🕐 Aktivita Během Dne</h3>
+                    <h3>🕐 Activity During the Day</h3>
                     <div class="chart-container">
                         <canvas id="hourlyChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
-                    <h3>📅 Aktivita v Týdnu</h3>
+                    <h3>📅 Activity During the Week</h3>
                     <div class="chart-container">
                         <canvas id="weeklyChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
-                    <h3>📈 Měsíční Trend</h3>
+                    <h3>📈 Monthly Trend</h3>
                     <div class="chart-container">
                         <canvas id="monthlyChart"></canvas>
                     </div>
@@ -1188,10 +1188,10 @@ MAIN_TEMPLATE = """
 
         <!-- SECTION: TOP LISTS -->
         <div class="section">
-            <h2 class="section-title">Top Žebříčky</h2>
+            <h2 class="section-title">Top Rankings</h2>
             <div class="top-lists">
                 <div class="list-card">
-                    <h2>Top Interpreti</h2>
+                    <h2>Top Artists</h2>
                     <ul>
                     {% for i, r in top_artists.iterrows() %}
                         <li>
@@ -1207,7 +1207,7 @@ MAIN_TEMPLATE = """
                 </div>
 
                 <div class="list-card">
-                    <h2>Top Skladby</h2>
+                    <h2>Top Tracks</h2>
                     <ul>
                     {% for i, r in top_tracks.iterrows() %}
                         <li>
@@ -1224,7 +1224,7 @@ MAIN_TEMPLATE = """
                 </div>
 
                 <div class="list-card">
-                    <h2>Top Alba</h2>
+                    <h2>Top Albums</h2>
                     <ul>
                     {% for i, r in top_albums.iterrows() %}
                         <li>
@@ -1246,7 +1246,7 @@ MAIN_TEMPLATE = """
     <!-- LOGOUT BUTTON -->
     <a href="/logout" class="logout-btn">
         <span>🚪</span>
-        Odhlásit se
+        Log out
     </a>
 
     <script>
@@ -1273,7 +1273,7 @@ MAIN_TEMPLATE = """
             data: {
                 labels: {{ hourly_chart['hour'].tolist() }},
                 datasets: [{
-                    label: 'Přehrání',
+                    label: 'Plays',
                     data: {{ hourly_chart['count'].tolist() }},
                     backgroundColor: hourlyGradient,
                     borderColor: '#1DB954',
@@ -1344,7 +1344,7 @@ MAIN_TEMPLATE = """
             data: {
                 labels: {{ weekly_chart['day_name'].tolist()|tojson }},
                 datasets: [{
-                    label: 'Přehrání',
+                    label: 'Plays',
                     data: {{ weekly_chart['count'].tolist() }},
                     backgroundColor: function(context) {
                         const chart = context.chart;
@@ -1416,7 +1416,7 @@ MAIN_TEMPLATE = """
             data: {
                 labels: {{ monthly_chart['month'].tolist()|tojson }},
                 datasets: [{
-                    label: 'Přehrání',
+                    label: 'Plays',
                     data: {{ monthly_chart['count'].tolist() }},
                     backgroundColor: monthlyGradient,
                     borderColor: '#1DB954',
@@ -1452,7 +1452,7 @@ MAIN_TEMPLATE = """
                             title: function(context) {
                                 const monthYear = context[0].label;
                                 const [year, month] = monthYear.split('-');
-                                const months = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                                 return months[parseInt(month) - 1] + ' ' + year;
                             }
                         }
@@ -1477,7 +1477,7 @@ MAIN_TEMPLATE = """
                             callback: function(value, index) {
                                 const monthYear = this.getLabelForValue(value);
                                 const [year, month] = monthYear.split('-');
-                                const months = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                                 return months[parseInt(month) - 1];
                             }
                         }
