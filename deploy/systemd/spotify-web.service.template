@@ -1,0 +1,22 @@
+[Unit]
+Description=Spotify Live Wrapped - web dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__INSTALL_DIR__/app
+EnvironmentFile=__INSTALL_DIR__/.env
+ExecStart=__INSTALL_DIR__/.venv/bin/gunicorn --workers 2 --bind __WEB_HOST__:__WEB_PORT__ web:app
+Restart=on-failure
+RestartSec=15
+
+# Základní hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=__INSTALL_DIR__/data
+
+[Install]
+WantedBy=multi-user.target
